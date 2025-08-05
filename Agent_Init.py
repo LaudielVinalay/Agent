@@ -3,22 +3,34 @@ from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
+from langchain_core.tools import tool
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 class Agent:
     def __init__(self,config_value:str):
-        self.__API_OPENROUTER = ""
-        self.__API_TAVILY = os.environ["TAVILY_API_KEY"] = ""
+        self.__API_OPENROUTER = os.getenv("OPENROUTER_API_KEY")
+        self.__API_TAVILY = os.getenv("TAVILY_API_KEY")
         self.__model = "qwen/qwen3-coder:free"
-        self.__baseURL = "https://openrouter.ai/api/v1"
+        self.__baseURL = os.getenv("OPENROUTER_BASE_URL")
         self.__model = ChatOpenAI(
-            model_name = self.__model,
+            model = self.__model,
             base_url = self.__baseURL,
-            api_key = self.__API_OPENROUTER
+            api_key= self.__API_OPENROUTER
         )
         self.__config = {"configurable":{"thread_id": config_value}}
         self.memory = MemorySaver()
-        self.tools = [TavilySearch(max_results=2)]
+        self.tools = [TavilySearch(max_results=2),self.evaluar_expresion]
+
+    @tool
+    def evaluar_expresion(expr:str) -> str:
+        "Evalua una expresion matematica en formato string"
+        try:
+            return str(eval(expr))
+        except Exception as e:
+            return f"Error{str(e)}"
         
     def run(self):
         agent_executor = create_react_agent(self.__model, self.tools, checkpointer= self.memory)
